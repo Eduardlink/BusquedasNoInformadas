@@ -1,0 +1,28 @@
+# Ignorar entornos virtuales
+venv/
+.venv/
+ENV/
+env/
+.env/
+Lib/
+Scripts/
+Include/
+share/
+
+# Ignorar archivos compilados de Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Ignorar archivos de log
+*.log
+
+# Ignorar archivos de configuración de IDEs
+.vscode/
+.idea/
+
+# Ignorar otros archivos temporales
+*.tmp
+*.bak
+*.swp
+*.swo
