@@ -1,129 +1,207 @@
+# Asegúrate de tener instaladas las librerías necesarias
+# Puedes instalarlas con:
+# pip install streamlit streamlit-flow psutil
+
 import streamlit as st
 from streamlit_flow import streamlit_flow
 from streamlit_flow.elements import StreamlitFlowNode, StreamlitFlowEdge
-import networkx as nx
 from collections import deque
+import time
+import psutil  # Para medir la memoria RAM consumida
 
-# Clase que representa un estado del problema
-class Estado:
-    def __init__(self, misioneros_izq, canibales_izq, barco_izq):
-        self.misioneros_izq = misioneros_izq
-        self.canibales_izq = canibales_izq
-        self.barco_izq = barco_izq
-        self.misioneros_der = 3 - misioneros_izq
-        self.canibales_der = 3 - canibales_izq
+class Nodo:
+    def __init__(self, estado, padre=None, accion=None, id=None, valido=True):
+        self.estado = estado
+        self.padre = padre
+        self.accion = accion
+        self.hijos = []
+        self.id = id  # Identificador único para cada nodo
+        self.valido = valido  # Indica si el estado es válido o no
 
-    def es_valido(self):
-        if self.misioneros_izq < 0 or self.misioneros_der < 0 or self.canibales_izq < 0 or self.canibales_der < 0:
-            return False
-        if (self.misioneros_izq > 0 and self.misioneros_izq < self.canibales_izq):
-            return False
-        if (self.misioneros_der > 0 and self.misioneros_der < self.canibales_der):
-            return False
-        return True
+    def agregar_hijo(self, hijo):
+        self.hijos.append(hijo)
 
-    def es_objetivo(self):
-        return self.misioneros_izq == 0 and self.canibales_izq == 0 and not self.barco_izq
+def validar_estado(estado):
+    o_izq, l_izq, b, o_der, l_der = estado
+    # Verificar que las cantidades no sean negativas o excedan el total
+    if o_izq < 0 or l_izq < 0 or o_der < 0 or l_der < 0:
+        return False
+    if o_izq > 3 or l_izq > 3 or o_der > 3 or l_der > 3:
+        return False
+    # Verificar la regla de que las ovejas no sean superadas por lobos en ninguna orilla
+    if (o_izq > 0 and o_izq < l_izq):
+        return False
+    if (o_der > 0 and o_der < l_der):
+        return False
+    return True
 
-    def generar_siguientes_estados(self):
-        siguientes_estados = []
-        movimientos = [(1, 0), (2, 0), (0, 1), (0, 2), (1, 1)]
+def generar_acciones():
+    # Genera todas las posibles acciones
+    return [(1, 0), (2, 0), (0, 1), (0, 2), (1, 1)]
 
-        for m, c in movimientos:
-            if self.barco_izq:
-                nuevo_estado = Estado(self.misioneros_izq - m, self.canibales_izq - c, False)
+def expandir_nodo(nodo, node_id_counter, estados_generados):
+    acciones = generar_acciones()
+    hijos = []
+    for accion in acciones:
+        do, dl = accion
+        if nodo.estado[2] == 1:
+            # Barco en el lado izquierdo
+            nuevo_estado = (nodo.estado[0] - do, nodo.estado[1] - dl, 0,
+                            nodo.estado[3] + do, nodo.estado[4] + dl)
+        else:
+            # Barco en el lado derecho
+            nuevo_estado = (nodo.estado[0] + do, nodo.estado[1] + dl, 1,
+                            nodo.estado[3] - do, nodo.estado[4] - dl)
+        es_valido = validar_estado(nuevo_estado)
+        nuevo_nodo = Nodo(nuevo_estado, padre=nodo, accion=accion, id=node_id_counter, valido=es_valido)
+        nodo.agregar_hijo(nuevo_nodo)
+        estados_generados.add(nuevo_estado)
+        hijos.append(nuevo_nodo)
+        node_id_counter += 1
+    return hijos, node_id_counter
+
+def bfs(nodo_raiz):
+    inicio_tiempo = time.time()
+    proceso = psutil.Process()
+    memoria_inicial = proceso.memory_info().rss
+
+    frontera = deque([nodo_raiz])
+    estados_visitados = set()
+    estados_visitados.add(nodo_raiz.estado)
+    estados_generados = set()
+    estados_generados.add(nodo_raiz.estado)
+    nodos_visitados = 1
+    node_id_counter = 1  # Comenzamos desde 1 porque la raíz es 0
+
+    all_nodes = [nodo_raiz]
+    all_edges = []
+    soluciones = []
+
+    while frontera:
+        nodo_actual = frontera.popleft()
+        hijos, node_id_counter = expandir_nodo(nodo_actual, node_id_counter, estados_generados)
+        for hijo in hijos:
+            all_nodes.append(hijo)
+            all_edges.append((nodo_actual.id, hijo.id))
+            if hijo.valido:
+                if hijo.estado not in estados_visitados:
+                    frontera.append(hijo)
+                    estados_visitados.add(hijo.estado)
+                    nodos_visitados += 1
+                    # Verificar si es estado objetivo
+                    if hijo.estado == (0, 0, 0, 3, 3):
+                        soluciones.append(hijo)
             else:
-                nuevo_estado = Estado(self.misioneros_izq + m, self.canibales_izq + c, True)
+                # Nodo inválido, no se agrega a la frontera para expandir
+                pass
 
-            if nuevo_estado.es_valido():
-                siguientes_estados.append(nuevo_estado)
+    fin_tiempo = time.time()
+    tiempo_total = fin_tiempo - inicio_tiempo
+    memoria_final = proceso.memory_info().rss
+    memoria_consumida = memoria_final - memoria_inicial
 
-        return siguientes_estados
+    return soluciones, nodos_visitados, all_nodes, all_edges, memoria_consumida, tiempo_total
 
-    def __repr__(self):
-        lado_izq = f"({self.misioneros_izq}M, {self.canibales_izq}C)"
-        lado_der = f"({self.misioneros_der}M, {self.canibales_der}C)"
-        ubicacion_barco = "Izq" if self.barco_izq else "Der"
-        return f"[{lado_izq} | {lado_der} - Bote: {ubicacion_barco}]"
+def main():
+    st.title("Búsqueda en Anchura - Problema de Ovejas y Lobos")
 
-    def __hash__(self):
-        return hash((self.misioneros_izq, self.canibales_izq, self.barco_izq))
+    estado_inicial = (3, 3, 1, 0, 0)
+    nodo_raiz = Nodo(estado_inicial, id=0)
+    soluciones, nodos_visitados, all_nodes, all_edges, memoria_consumida, tiempo_total = bfs(nodo_raiz)
 
-    def __eq__(self, other):
-        return (self.misioneros_izq, self.canibales_izq, self.barco_izq) == (other.misioneros_izq, other.canibales_izq, other.barco_izq)
+    if soluciones:
+        st.write("## Se encontraron soluciones:")
+        # Mostrar todas las rutas de solución
+        for idx, solucion in enumerate(soluciones):
+            st.write(f"### Solución {idx + 1}:")
+            camino = []
+            nodo = solucion
+            while nodo:
+                camino.append(nodo.estado)
+                nodo = nodo.padre
+            camino.reverse()
+            for step_idx, estado in enumerate(camino):
+                st.write(f"Paso {step_idx + 1}: {estado}")
+            st.write("---")
 
-# Función para resolver el problema y generar el grafo
-def resolver_y_generar_grafo():
-    estado_inicial = Estado(3, 3, True)
-    cola = deque([(estado_inicial, [])])
-    visitados = set()
-    grafo = nx.DiGraph()  # Crear un grafo dirigido
+    else:
+        st.write("No se encontraron soluciones.")
 
-    while cola:
-        estado_actual, camino = cola.popleft()
-        estado_hash = (estado_actual.misioneros_izq, estado_actual.canibales_izq, estado_actual.barco_izq)
+    # Crear nodos y aristas para streamlit_flow
+    nodes = []
+    edges = []
+    node_positions = {}  # Para almacenar posiciones (para visualización)
+    y_spacing = 100  # Espaciado vertical entre niveles
+    x_spacing = 150  # Espaciado horizontal entre nodos
 
-        if estado_hash in visitados:
-            continue
-        visitados.add(estado_hash)
+    # Asignar niveles a los nodos basados en BFS
+    levels = {}
+    queue = deque([(nodo_raiz, 0)])
+    while queue:
+        nodo_actual, level = queue.popleft()
+        if nodo_actual.id not in levels:
+            levels[nodo_actual.id] = level
+            for hijo in nodo_actual.hijos:
+                queue.append((hijo, level + 1))
 
-        # Añadir nodo al grafo
-        if camino:
-            grafo.add_edge(repr(camino[-1]), repr(estado_actual))
+    # Agrupar nodos por nivel
+    level_nodes = {}
+    for nodo in all_nodes:
+        level = levels.get(nodo.id, 0)
+        if level not in level_nodes:
+            level_nodes[level] = []
+        level_nodes[level].append(nodo)
 
-        if estado_actual.es_objetivo():
-            return grafo, camino + [estado_actual]
+    # Asignar posiciones a los nodos
+    for level in sorted(level_nodes.keys()):
+        nodes_in_level = level_nodes[level]
+        n = len(nodes_in_level)
+        x_start = (n - 1) * (-x_spacing / 2)
+        for i, nodo in enumerate(nodes_in_level):
+            x_pos = x_start + i * x_spacing
+            y_pos = level * y_spacing
+            node_positions[nodo.id] = (x_pos, y_pos)
+            # Determinar el tipo de nodo
+            if nodo.estado == (0, 0, 0, 3, 3):
+                node_type = 'output'
+            elif not nodo.valido:
+                node_type = 'input'  # Marcamos los estados inválidos con un tipo diferente
+            else:
+                node_type = 'default'
+            # Crear StreamlitFlowNode
+            node_label = f"{nodo.estado}"
+            nodes.append(StreamlitFlowNode(
+                id=str(nodo.id),
+                pos=(x_pos, y_pos),
+                data={'content': node_label},
+                node_type=node_type,
+                draggable=False
+            ))
 
-        # Generar siguientes estados
-        for siguiente in estado_actual.generar_siguientes_estados():
-            cola.append((siguiente, camino + [estado_actual]))
+    # Crear aristas
+    for parent_id, child_id in all_edges:
+        edges.append(StreamlitFlowEdge(
+            id=f"{parent_id}-{child_id}",
+            source=str(parent_id),
+            target=str(child_id),
+            animated=True
+        ))
 
-    return grafo, None
+    # Mostrar el flujo
+    streamlit_flow('search_tree',
+                   nodes,
+                   edges,
+                   fit_view=True,
+                   show_minimap=True,
+                   show_controls=True,
+                   pan_on_drag=True,
+                   allow_zoom=True)
 
-# Generar el grafo y la solución
-grafo, solucion = resolver_y_generar_grafo()
+    st.write(f"\n## Medidas de rendimiento:")
+    st.write(f"\tNodos visitados (válidos): {nodos_visitados}")
+    st.write(f"\tTotal de nodos generados: {len(all_nodes)}")
+    st.write(f"\tTiempo total de ejecución: {tiempo_total:.4f} segundos")
+    st.write(f"\tMemoria RAM total consumida: {memoria_consumida} bytes")
 
-# Convertir nodos y aristas para Streamlit Flow
-nodes = [
-    StreamlitFlowNode(
-        id=repr(estado),  # El ID del nodo debe coincidir con cómo se representa en el grafo
-        pos=(i * 50, i * 50),  # Ajusta la posición según tus necesidades
-        data={'content': repr(estado)},  # Mostrar el estado como contenido del nodo
-        node_type='default'
-    ) 
-    for i, estado in enumerate(grafo.nodes)
-]
-
-# Crear las aristas entre nodos utilizando los IDs correctos
-edges = [
-    StreamlitFlowEdge(
-        id=f'{repr(source)}-{repr(target)}', 
-        source=repr(source), 
-        target=repr(target), 
-        animated=True
-    ) 
-    for source, target in grafo.edges
-]
-
-# Título en la aplicación de Streamlit
-st.title("Árbol de Estados para el Problema de Caníbales y Misioneros")
-
-# Mostrar la solución encontrada, si existe
-if solucion:
-    st.write("Solución:")
-    for paso in solucion:
-        st.write(paso)
-else:
-    st.write("No se encontró solución.")
-
-# Dibujar el grafo utilizando Streamlit Flow
-streamlit_flow(
-    'static_flow',
-    nodes,
-    edges,
-    fit_view=True,
-    show_minimap=False,
-    show_controls=True,
-    pan_on_drag=True,
-    allow_zoom=True
-)
+if __name__ == "__main__":
+    main()
