@@ -27,14 +27,14 @@ def imprimir_camino(nodo):
         st.write(f"Paso {idx + 1}: {estado}")
 
 def validar_estado(estado):
-    m_izq, c_izq, b, m_der, c_der = estado
+    o_izq, l_izq, b, o_der, l_der = estado
     # Verificar que no haya números negativos
-    if m_izq < 0 or c_izq < 0 or m_der < 0 or c_der < 0:
+    if o_izq < 0 or l_izq < 0 or o_der < 0 or l_der < 0:
         return False
     # Verificar las reglas del problema
-    if (m_izq > 0 and m_izq < c_izq):
+    if (o_izq > 0 and o_izq < l_izq):
         return False
-    if (m_der > 0 and m_der < c_der):
+    if (o_der > 0 and o_der < l_der):
         return False
     return True
 
@@ -47,13 +47,13 @@ def expandir_nodo(nodo, nodo_id_counter, visitados):
     acciones = generar_acciones()
     hijos = []
     for accion in acciones:
-        dm, dc = accion
+        do, dl = accion
         if nodo.estado[2] == 1:  # Barco en la izquierda
-            nuevo_estado = (nodo.estado[0] - dm, nodo.estado[1] - dc, 0,
-                            nodo.estado[3] + dm, nodo.estado[4] + dc)
+            nuevo_estado = (nodo.estado[0] - do, nodo.estado[1] - dl, 0,
+                            nodo.estado[3] + do, nodo.estado[4] + dl)
         else:  # Barco en la derecha
-            nuevo_estado = (nodo.estado[0] + dm, nodo.estado[1] + dc, 1,
-                            nodo.estado[3] - dm, nodo.estado[4] - dc)
+            nuevo_estado = (nodo.estado[0] + do, nodo.estado[1] + dl, 1,
+                            nodo.estado[3] - do, nodo.estado[4] - dl)
         # Evaluar si el nuevo estado es válido
         es_valido = validar_estado(nuevo_estado)
         nodo_id_counter[0] += 1
@@ -140,7 +140,7 @@ def dfs_expand_all(nodo):
     return soluciones, nodos_visitados, tiempo_ejecucion, memoria_pico, nodes, edges
 
 def main():
-    st.title("Problema de los Misioneros y Caníbales - Búsqueda en Profundidad")
+    st.title("Problema de los Lobos y Ovejas - Búsqueda en Profundidad")
 
     estado_inicial = (3, 3, 1, 0, 0)
     nodo_raiz = Nodo(estado_inicial, id='0')
@@ -153,7 +153,7 @@ def main():
         nodes,
         edges,
         fit_view=True,
-        show_minimap=False,
+        show_minimap=True,
         show_controls=True,
         pan_on_drag=True,
         allow_zoom=True
