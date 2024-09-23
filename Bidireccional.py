@@ -184,12 +184,12 @@ def main():
         for idx, estado in enumerate(camino_total):
             o_izq, l_izq, b, o_der, l_der = estado
             lado_barco = 'Izquierda' if b == 1 else 'Derecha'
-            st.write(f"Paso {idx + 1}: Ovejas Izq: {o_izq}, Lobos Izq: {l_izq}, Barco: {lado_barco}, Ovejas Der: {o_der}, Lobos Der: {l_der}")
+            st.write(f"Paso {idx + 1}: ({o_izq}, {l_izq}, {b}, {o_der}, {l_der})")
 
         st.write("\n**Medidas de rendimiento:**")
         st.write(f"- Nodos visitados: {nodos_visitados}")
         st.write(f"- Tiempo de ejecución: {tiempo_ejecucion:.2f} ms")
-        st.write(f"- Memoria RAM consumida: {memoria_consumida:.2f} MB")
+        st.write(f"- Memoria RAM consumida: {memoria_consumida/ 1024:.2f} KB")
     else:
         st.write("No se encontró una solución.")
 
@@ -209,7 +209,7 @@ def main():
             pos=pos,
             data=data,
             node_type=node_type,
-            draggable=False
+            draggable=True
         )
         nodes.append(node)
 
