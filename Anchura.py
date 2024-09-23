@@ -99,7 +99,7 @@ def bfs(nodo_raiz):
     return soluciones, nodos_visitados, all_nodes, all_edges, memoria_consumida, tiempo_total
 
 def main():
-    st.title("Búsqueda en Anchura - Problema de Ovejas y Lobos")
+    st.title("Búsqueda en Anchura - Ovejas y Lobos")
 
     estado_inicial = (3, 3, 1, 0, 0)
     nodo_raiz = Nodo(estado_inicial, id=0)

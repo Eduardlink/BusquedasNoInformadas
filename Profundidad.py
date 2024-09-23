@@ -146,7 +146,7 @@ def dfs_expand_all_iterativo(nodo_raiz):
     return soluciones, nodos_visitados, tiempo_ejecucion, memoria_pico, nodes, edges
 
 def main():
-    st.title("Problema de los Lobos y Ovejas - Búsqueda en Profundidad")
+    st.title("Búsqueda en Profundidad - Ovejas y Lobos")
 
     estado_inicial = (3, 3, 1, 0, 0)
     nodo_raiz = Nodo(estado_inicial, id='0')

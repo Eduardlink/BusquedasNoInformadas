@@ -201,7 +201,7 @@ def imprimir_camino(nodo):
         st.write(f"Paso {idx + 1}: ({s_izq}, {l_izq}, {b}, {s_der}, {l_der})")
 
 def main():
-    st.title("Ovejas y Lobos - Búsqueda en Profundidad Iterativa con Visualización")
+    st.title("Búsqueda en Profundidad Iterativa  - Ovejas y Lobos")
 
     estado_inicial = (3, 3, 1, 0, 0)
     nodo_raiz = Nodo(estado_inicial)

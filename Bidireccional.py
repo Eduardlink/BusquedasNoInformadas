@@ -177,16 +177,18 @@ def main():
     memoria_consumida = memoria_final - memoria_inicial
     tiempo_ejecucion = (fin_tiempo - inicio_tiempo) * 1000  # Convertir a milisegundos
 
+    st.title("Búsqueda Bidireccional - Ovejas y Lobos")
+
     if solucion_desde_inicial and solucion_desde_final:
         camino_total = reconstruir_camino(solucion_desde_inicial, solucion_desde_final)
-        st.write("### Se encontró una solución:")
+        st.subheader("Se encontró una solución:")
         st.write("**Camino:**")
         for idx, estado in enumerate(camino_total):
             o_izq, l_izq, b, o_der, l_der = estado
             lado_barco = 'Izquierda' if b == 1 else 'Derecha'
             st.write(f"Paso {idx + 1}: ({o_izq}, {l_izq}, {b}, {o_der}, {l_der})")
 
-        st.write("\n**Medidas de rendimiento:**")
+        st.subheader("\n**Medidas de rendimiento:**")
         st.write(f"- Nodos visitados: {nodos_visitados}")
         st.write(f"- Tiempo de ejecución: {tiempo_ejecucion:.2f} ms")
         st.write(f"- Memoria RAM consumida: {memoria_consumida/ 1024:.2f} KB")

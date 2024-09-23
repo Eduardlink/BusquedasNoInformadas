@@ -10,7 +10,7 @@ def ejecutar_archivo(codigo):
         st.error(f"Error al ejecutar el archivo: {e}")
 
 def main():
-    st.title("Ejecutar Código de Búsqueda")
+    st.title("Busquedas no informadas")
 
     # Menú de opciones para seleccionar el tipo de búsqueda
     opcion = st.selectbox("Selecciona un tipo de búsqueda", ["Selecciona...", "Búsqueda en Anchura", "Búsqueda en Profundidad", "Búsqueda en Profundidad Iterativa", "Búsqueda Bidireccional"])
