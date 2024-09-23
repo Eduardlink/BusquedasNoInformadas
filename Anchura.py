@@ -1,13 +1,9 @@
-# Asegúrate de tener instaladas las librerías necesarias
-# Puedes instalarlas con:
-# pip install streamlit streamlit-flow psutil
-
 import streamlit as st
 from streamlit_flow import streamlit_flow
 from streamlit_flow.elements import StreamlitFlowNode, StreamlitFlowEdge
 from collections import deque
 import time
-import psutil  # Para medir la memoria RAM consumida
+import psutil
 
 class Nodo:
     def __init__(self, estado, padre=None, accion=None, id=None, valido=True):
@@ -96,9 +92,9 @@ def bfs(nodo_raiz):
                 pass
 
     fin_tiempo = time.time()
-    tiempo_total = fin_tiempo - inicio_tiempo
+    tiempo_total = (fin_tiempo - inicio_tiempo) * 1000  # Convertir a milisegundos
     memoria_final = proceso.memory_info().rss
-    memoria_consumida = memoria_final - memoria_inicial
+    memoria_consumida = (memoria_final - memoria_inicial) / 1024  # Convertir a kilobytes
 
     return soluciones, nodos_visitados, all_nodes, all_edges, memoria_consumida, tiempo_total
 
@@ -189,19 +185,19 @@ def main():
 
     # Mostrar el flujo
     streamlit_flow('search_tree',
-                   nodes,
-                   edges,
-                   fit_view=True,
-                   show_minimap=True,
-                   show_controls=True,
-                   pan_on_drag=True,
-                   allow_zoom=True)
+                    nodes,
+                    edges,
+                    fit_view=True,
+                    show_minimap=True,
+                    show_controls=True,
+                    pan_on_drag=True,
+                    allow_zoom=True)
 
     st.write(f"\n## Medidas de rendimiento:")
     st.write(f"\tNodos visitados (válidos): {nodos_visitados}")
     st.write(f"\tTotal de nodos generados: {len(all_nodes)}")
-    st.write(f"\tTiempo total de ejecución: {tiempo_total:.4f} segundos")
-    st.write(f"\tMemoria RAM total consumida: {memoria_consumida} bytes")
+    st.write(f"\tTiempo total de ejecución: {tiempo_total:.2f} ms")
+    st.write(f"\tMemoria RAM total consumida: {memoria_consumida:.2f} KB")
 
 if __name__ == "__main__":
     main()
