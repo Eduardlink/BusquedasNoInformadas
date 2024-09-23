@@ -1,4 +1,5 @@
 import time
+import tracemalloc  # Importar tracemalloc para medir memoria
 import streamlit as st
 from collections import deque
 from streamlit_flow import streamlit_flow
@@ -59,13 +60,76 @@ def get_depth(nodo):
         depth +=1
     return depth
 
-def bfs_with_visualizacion(nodo_inicial):
-    inicio_tiempo = time.time()
-    frontera = deque()
-    frontera.append(nodo_inicial)
+def depth_limited_search(nodo_inicial, limit, nodes_list, edges_list, node_positions, level_positions, node_counter):
+    frontera = []
+    frontera.append((nodo_inicial, 0))  # Nodo y profundidad
     visitados = set()
-    visitados.add(nodo_inicial.estado)
     nodos_expandidos = 0
+
+    while frontera:
+        nodo_actual, depth = frontera.pop()
+        nodos_expandidos += 1
+
+        if nodo_actual.estado == (0, 0, 0, 3, 3):
+            return nodo_actual, nodos_expandidos, node_counter
+
+        if depth >= limit:
+            continue
+
+        if nodo_actual.estado in visitados:
+            continue
+
+        visitados.add(nodo_actual.estado)
+
+        hijos = expandir_nodo(nodo_actual)
+
+        if depth + 1 not in level_positions:
+            level_positions[depth + 1] = 0
+
+        for hijo in hijos:
+            hijo.id = str(node_counter)
+            node_counter +=1
+
+            # Asignar posición
+            x = (depth + 1) * 200  # Ajustar separación en x según sea necesario
+            y = level_positions[depth + 1] * 100  # Ajustar separación en y según sea necesario
+            node_positions[hijo.id] = (x, y)
+            level_positions[depth + 1] +=1
+
+            # Determinar tipo de nodo
+            if hijo.estado == (0, 0, 0, 3, 3):
+                node_type = 'output'
+            else:
+                node_type = 'default'
+
+            # Crear nodo para StreamlitFlow
+            nodes_list.append(StreamlitFlowNode(
+                id=hijo.id,
+                pos=(x, y),
+                data={'content': str(hijo.estado)},
+                node_type=node_type,
+                source_position='right',
+                target_position='left',
+                draggable=False
+            ))
+
+            # Crear arista para StreamlitFlow
+            edges_list.append(StreamlitFlowEdge(
+                id=f"{nodo_actual.id}-{hijo.id}",
+                source=nodo_actual.id,
+                target=hijo.id,
+                animated=True
+            ))
+
+            frontera.append((hijo, depth + 1))
+
+    return None, nodos_expandidos, node_counter
+
+def iddfs_with_visualizacion(nodo_inicial):
+    inicio_tiempo = time.time()
+    tracemalloc.start()  # Iniciar rastreo de memoria
+
+    nodos_expandidos_total = 0
 
     # Para visualización
     nodes_list = []
@@ -91,62 +155,40 @@ def bfs_with_visualizacion(nodo_inicial):
         draggable=False
     ))
 
-    while frontera:
-        nodo_actual = frontera.popleft()
-        nodos_expandidos += 1
+    max_depth = 0
+    solucion = None
 
-        if nodo_actual.estado == (0, 0, 0, 3, 3):
+    while True:
+        level_positions = {0: 0}  # Reiniciar posiciones por nivel
+        result, nodos_expandidos, node_counter = depth_limited_search(
+            nodo_inicial, max_depth, nodes_list, edges_list, node_positions, level_positions, node_counter
+        )
+        nodos_expandidos_total += nodos_expandidos
+
+        if result is not None:
             fin_tiempo = time.time()
             tiempo_ejecucion = (fin_tiempo - inicio_tiempo) * 1000  # Convertir a milisegundos
-            return nodo_actual, nodos_expandidos, tiempo_ejecucion, nodes_list, edges_list
 
-        hijos = expandir_nodo(nodo_actual)
+            # Obtener uso de memoria
+            current, peak = tracemalloc.get_traced_memory()
+            tracemalloc.stop()  # Detener rastreo de memoria
+            memoria_consumida = peak  # Memoria máxima en bytes
 
-        depth = get_depth(nodo_actual) +1  # Profundidad de los nodos hijos
+            return result, nodos_expandidos_total, tiempo_ejecucion, memoria_consumida, nodes_list, edges_list
 
-        if depth not in level_positions:
-            level_positions[depth] = 0
+        max_depth += 1
 
-        for hijo in hijos:
-            if hijo.estado not in visitados:
-                hijo.id = str(node_counter)
-                node_counter +=1
+        # Evitar bucles infinitos
+        if max_depth > 20:
+            fin_tiempo = time.time()
+            tiempo_ejecucion = (fin_tiempo - inicio_tiempo) * 1000  # Convertir a milisegundos
 
-                frontera.append(hijo)
-                visitados.add(hijo.estado)
+            # Obtener uso de memoria
+            current, peak = tracemalloc.get_traced_memory()
+            tracemalloc.stop()  # Detener rastreo de memoria
+            memoria_consumida = peak  # Memoria máxima en bytes
 
-                # Asignar posición
-                x = depth * 200  # Ajustar separación en x según sea necesario
-                y = level_positions[depth] * 100  # Ajustar separación en y según sea necesario
-                node_positions[hijo.id] = (x, y)
-                level_positions[depth] +=1
-
-                # Determinar tipo de nodo
-                if hijo.estado == (0, 0, 0, 3, 3):
-                    node_type = 'output'
-                else:
-                    node_type = 'default'
-
-                # Crear nodo para StreamlitFlow
-                nodes_list.append(StreamlitFlowNode(
-                    id=hijo.id,
-                    pos=(x, y),
-                    data={'content': str(hijo.estado)},
-                    node_type=node_type,
-                    source_position='right',
-                    target_position='left',
-                    draggable=False
-                ))
-
-                # Crear arista para StreamlitFlow
-                edges_list.append(StreamlitFlowEdge(
-                    id=f"{nodo_actual.id}-{hijo.id}",
-                    source=nodo_actual.id,
-                    target=hijo.id,
-                    animated=True
-                ))
-
-    return None, nodos_expandidos, None, nodes_list, edges_list
+            return None, nodos_expandidos_total, tiempo_ejecucion, memoria_consumida, nodes_list, edges_list
 
 def imprimir_camino(nodo):
     camino = []
@@ -156,14 +198,14 @@ def imprimir_camino(nodo):
     camino.reverse()
     for idx, estado in enumerate(camino):
         s_izq, l_izq, b, s_der, l_der = estado
-        st.write(f"Paso {idx + 1}: Ovejas Izquierda: {s_izq}, Lobos Izquierda: {l_izq}, Barco: {'Izquierda' if b == 1 else 'Derecha'}, Ovejas Derecha: {s_der}, Lobos Derecha: {l_der}")
+        st.write(f"Paso {idx + 1}: ({s_izq}, {l_izq}, {b}, {s_der}, {l_der})")
 
 def main():
-    st.title("Ovejas y Lobos - Búsqueda con Visualización")
+    st.title("Ovejas y Lobos - Búsqueda en Profundidad Iterativa con Visualización")
 
     estado_inicial = (3, 3, 1, 0, 0)
     nodo_raiz = Nodo(estado_inicial)
-    solucion, nodos_expandidos, tiempo_ejecucion, nodes_list, edges_list = bfs_with_visualizacion(nodo_raiz)
+    solucion, nodos_expandidos, tiempo_ejecucion, memoria_consumida, nodes_list, edges_list = iddfs_with_visualizacion(nodo_raiz)
 
     if solucion:
         st.header("Se encontró una solución:")
@@ -171,6 +213,7 @@ def main():
         st.subheader("Medidas de rendimiento:")
         st.write(f"Nodos expandidos: {nodos_expandidos}")
         st.write(f"Tiempo de ejecución: {tiempo_ejecucion:.2f} ms")
+        st.write(f"RAM consumida: {memoria_consumida/ 1024:.2f} KB")
 
         st.header("Árbol de búsqueda generado:")
         # Mostrar el árbol usando streamlit_flow
