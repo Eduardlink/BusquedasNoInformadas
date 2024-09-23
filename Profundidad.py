@@ -43,7 +43,7 @@ def generar_acciones():
     movimientos = [(1, 0), (2, 0), (0, 1), (0, 2), (1, 1)]
     return movimientos
 
-def expandir_nodo(nodo, nodo_id_counter, visitados):
+def expandir_nodo(nodo, nodo_id_counter):
     acciones = generar_acciones()
     hijos = []
     for accion in acciones:
@@ -62,7 +62,7 @@ def expandir_nodo(nodo, nodo_id_counter, visitados):
         hijos.append(nuevo_nodo)
     return hijos
 
-def dfs_expand_all(nodo):
+def dfs_expand_all_iterativo(nodo_raiz):
     # Iniciar el rastreo de memoria
     tracemalloc.start()
 
@@ -74,30 +74,37 @@ def dfs_expand_all(nodo):
     # Para visualización con streamlit_flow
     nodes = []
     edges = []
-    nodo_id_counter = [0]  # Usamos una lista para poder modificar el contador dentro de funciones
+    nodo_id_counter = [0] 
 
     # Añadir el nodo raíz a la visualización
     nodes.append(StreamlitFlowNode(
-        nodo.id,
+        nodo_raiz.id,
         (0, 0),
-        {'label': str(nodo.estado)}
+        {'label': str(nodo_raiz.estado)}
     ))
-    positions = {nodo.id: (0, 0)}  # Guardar posiciones para organizar el árbol
+    positions = {nodo_raiz.id: (0, 0)}  
 
-    def dfs_recursivo(nodo, depth=0):
-        nonlocal nodos_visitados
+    # Inicializar la pila con el nodo raíz
+    stack = [nodo_raiz]
+
+    while stack:
+        actual_nodo = stack.pop()
         nodos_visitados += 1
 
-        visitados.add(nodo.estado)
-        if nodo.estado == (0, 0, 0, 3, 3):
-            soluciones.append(nodo)
-            return
+        # Marcar el estado como visitado
+        visitados.add(actual_nodo.estado)
 
-        hijos = expandir_nodo(nodo, nodo_id_counter, visitados)
+        # Verificar si es una solución
+        if actual_nodo.estado == (0, 0, 0, 3, 3):
+            soluciones.append(actual_nodo)
+            continue  
+
+        # Expandir el nodo
+        hijos = expandir_nodo(actual_nodo, nodo_id_counter)
 
         for idx, hijo in enumerate(hijos):
             # Agregar todos los hijos al árbol de visualización, sean válidos o no
-            padre_x, padre_y = positions[nodo.id]
+            padre_x, padre_y = positions[actual_nodo.id]
             hijo_x = padre_x + 300  # Espacio horizontal entre niveles
             hijo_y = padre_y + (idx - len(hijos) / 2) * 100  # Espacio vertical entre nodos
 
@@ -116,20 +123,19 @@ def dfs_expand_all(nodo):
 
             # Añadir la arista entre el nodo actual y el hijo
             edges.append(StreamlitFlowEdge(
-                f"{nodo.id}-{hijo.id}",
-                nodo.id,
+                f"{actual_nodo.id}-{hijo.id}",
+                actual_nodo.id,
                 hijo.id,
                 label=str(hijo.accion)
             ))
 
-            # Control de nodos repetidos: no expandir si ya se visitó el estado
+            # Control de nodos repetidos: no añadir a la pila si ya se visitó o es inválido
             if hijo.valido and hijo.estado not in visitados:
-                dfs_recursivo(hijo, depth + 1)
+                stack.append(hijo)
             else:
                 # Marcar como estéril
                 hijo.expanded = True
 
-    dfs_recursivo(nodo)
     fin_tiempo = time.time()
     tiempo_ejecucion = (fin_tiempo - inicio_tiempo) * 1000  # Convertir a milisegundos
 
@@ -144,7 +150,7 @@ def main():
 
     estado_inicial = (3, 3, 1, 0, 0)
     nodo_raiz = Nodo(estado_inicial, id='0')
-    soluciones, nodos_visitados, tiempo_ejecucion, memoria_pico, nodes, edges = dfs_expand_all(nodo_raiz)
+    soluciones, nodos_visitados, tiempo_ejecucion, memoria_pico, nodes, edges = dfs_expand_all_iterativo(nodo_raiz)
 
     st.subheader("Árbol de búsqueda generado:")
     # Mostrar el árbol utilizando streamlit_flow
